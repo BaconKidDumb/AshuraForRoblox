@@ -250,7 +250,8 @@ end)
 
 local win = GuiLibrary:CreateWindow({
 	["Title"] = "Ashura V1",
-	["Theme"] = "BloodTheme"
+	["Theme"] = "BloodTheme",
+        ["Size"] = UDim2.fromOffset(525, 318)
 })
 
 local Tabs = {
