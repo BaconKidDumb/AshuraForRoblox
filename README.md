@@ -1,2 +1,9 @@
-# ASHURA V1
-**A script that I have made for mobile, mostly known for bedwars.**
+# ASHURA V1.2
+**totally known in bedwars**
+
+**Get The Script Here!**
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/BaconKidDumb/AshuraForRoblox/main/MainScriptV1.2.lua", true))()
+```
+
