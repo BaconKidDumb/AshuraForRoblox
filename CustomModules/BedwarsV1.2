@@ -1,10 +1,16 @@
 -- // credits to anyone code i used/lookeed at
 local GuiLibrary = shared.GuiLibrary
 
+local bedwars = {}
+
 local players = game:GetService("Players")
 local lplr = players.LocalPlayer
 local cam = game:GetService("Workspace").CurrentCamera
 local modules = {}
+local collectionservice = game:GetService("CollectionService")
+local mouse = lplr:GetMouse()
+local getfunctions
+local oldchar
 
 local function isAlive(plr)
 	if plr then
@@ -251,7 +257,7 @@ end)
 local win = GuiLibrary:CreateWindow({
 	["Title"] = "Ashura V1",
 	["Theme"] = "BloodTheme",
-        ["Size"] = UDim2.fromOffset(525, 318)
+    ["Size"] = UDim2.fromOffset(525, 318)
 })
 
 local Tabs = {
@@ -267,6 +273,7 @@ local Sections = {
 	["NoClickDelay"] = Tabs["Combat"].NewSection("NoClickDelay"),
 	["Sprint"] = Tabs["Combat"].NewSection("Sprint"),
 	["Killaura"] = Tabs["Blatant"].NewSection("Killaura"),
+	["BowAim"] = Tabs["Blatant"].NewSection("Items"),
 	["NoFall"] = Tabs["Blatant"].NewSection("NoFall"),
 	["AntiVoid"] = Tabs["World"].NewSection("AntiVoid")
 }
@@ -405,6 +412,125 @@ runcode(function()
 			killauraswing["Enabled"] = val
 		end,
 		["InfoText"] = "Removes the swinging animation."
+	})
+end)
+
+-- im dont want fight, im borrow it to source vape cuz im bad coding like skid.
+runcode(function()
+local function LaunchDirection(start, target, v, g, higherArc: boolean)
+		-- get the direction flattened:
+		local horizontal = Vector3.new(target.X - start.X, 0, target.Z - start.Z)
+		
+		local h = target.Y - start.Y
+		local d = horizontal.Magnitude
+		local a = LaunchAngle(v, g, d, h, higherArc)
+		
+		-- NaN ~= NaN, computation couldn't be done (e.g. because it's too far to launch)
+		if a ~= a then return nil end
+		
+		-- speed if we were just launching at a flat angle:
+		local vec = horizontal.Unit * v
+		
+		-- rotate around the axis perpendicular to that direction...
+		local rotAxis = Vector3.new(-horizontal.Z, 0, horizontal.X)
+		
+		-- ...by the angle amount
+		return CFrame.fromAxisAngle(rotAxis, a) * vec
+end
+
+local function FindLeadShot(targetPosition: Vector3, targetVelocity: Vector3, projectileSpeed: Number, shooterPosition: Vector3, shooterVelocity: Vector3, gravity: Number)
+		local distance = (targetPosition - shooterPosition).Magnitude
+
+		local p = targetPosition - shooterPosition
+		local v = targetVelocity - shooterVelocity
+		local a = Vector3.new()
+
+		local timeTaken = (distance / projectileSpeed)
+		
+		if gravity > 0 then
+			local timeTaken = projectileSpeed/gravity+math.sqrt(2*distance/gravity+projectileSpeed^2/gravity^2)
+		end
+
+		local goalX = targetPosition.X + v.X*timeTaken + 0.5 * a.X * timeTaken^2
+		local goalY = targetPosition.Y + v.Y*timeTaken + 0.5 * a.Y * timeTaken^2
+		local goalZ = targetPosition.Z + v.Z*timeTaken + 0.5 * a.Z * timeTaken^2
+		
+		return Vector3.new(goalX, goalY, goalZ)
+end
+
+local oldaim
+local oldplr
+local oldmove
+local zerovelocheck = tick()
+local oldbowx = 0.8
+local otherprojectiles = {["Enabled"] = false}
+local BowAimbotPart = {["Value"] = "HumanoidRootPart"}
+local BowAimbot = Sections["BowAim"].NewToggle({
+		["Name"] = "Aimbot",
+		["Function"] = function(callback)
+			if callback then
+				oldaim = bedwars["BowTable"]["calculateImportantLaunchValues"]
+				bedwars["BowTable"]["calculateImportantLaunchValues"] = function(bowtable, projmeta, worldmeta, shootpospart, ...)
+					local plr = GetNearestHumanoidToMouse(true, 1000)--{Character = {Humanoid = {MoveDirection = Vector3.new(0, 0, 0)}, HumanoidRootPart = {Position = mouse.Hit.p, Velocity = Vector3.new(0, 0, 0)}}}-- GetNearestHumanoidToMouse(true, 1000)
+					if plr then
+						local shootpos = bowtable:getLaunchPosition(shootpospart)
+						if not shootpos then
+							return oldaim(bowtable, projmeta, worldmeta, shootpospart, ...)
+						end
+						if (not otherprojectiles["Enabled"]) and projmeta.projectile:find("arrow") == nil then
+							return oldaim(bowtable, projmeta, worldmeta, shootpospart, ...)
+						end
+						local projmetatab = projmeta:getProjectileMeta();
+						local prediction = (worldmeta and projmetatab.predictionLifetimeSec or projmetatab.lifetimeSec or 3)
+						local launchvelo = (projmetatab.launchVelocity or 100)
+						local gravity = (projmetatab.gravitationalAcceleration or 196.2)
+						local multigrav = gravity * projmeta.gravityMultiplier
+						local offsetshootpos = shootpos + projmeta.fromPositionOffset
+					 	local pos = (plr.Character[BowAimbotPart["Value"]].Position + Vector3.new(0, 0.8, 0)) 
+						if (offsetshootpos - pos).magnitude >= launchvelo * 1.4 then
+							return oldaim(bowtable, projmeta, worldmeta, shootpospart, ...)
+						end
+						local newlook = CFrame.new(offsetshootpos, pos) * CFrame.new(Vector3.new(-bedwars["BowConstantsTable"].RelX, 0, 0))
+						pos = newlook.p + (newlook.lookVector * (offsetshootpos - pos).magnitude)
+					--print(CFrame.new(offsetshootpos, pos).lookVector, newlook.lookVector)
+					--	pos = pos
+						--pos = pos + Vector3.new(0, (offsetshootpos - pos).magnitude * ((launchvelo / ((launchvelo / gravity - 10) * 100000)) * gravity), 0)
+						oldplr = plr
+						if plr ~= oldplr then
+							oldmove = nil
+						end
+						if oldmove and (oldmove - plr.Character.Humanoid.MoveDirection).magnitude >= 1.7 then
+							print("no velo troll", (oldmove - plr.Character.Humanoid.MoveDirection).magnitude)
+							zerovelocheck = tick() + 0.6
+						end
+						local velo = (Vector3.new(plr.Character.HumanoidRootPart.Velocity.X, plr.Character.HumanoidRootPart.Velocity.Y / 40, plr.Character.HumanoidRootPart.Velocity.Z) * (zerovelocheck <= tick() and 1.15 or 0.3))
+						if projmeta.projectile == "telepearl" then
+							velo = Vector3.new(0, 0, 0)
+						end
+						local calculated2 = FindLeadShot(pos, velo, launchvelo, offsetshootpos, Vector3.new(0, 0, 0), multigrav) 
+						pos = pos + Vector3.new(0, velo.Y + (plr.Character:GetAttribute("InflatedBalloons") and plr.Character:GetAttribute("InflatedBalloons") > 0 and velo.Y > 0 and 1 or 0), 0)
+						local calculated = LaunchDirection(offsetshootpos, pos, launchvelo, gravity, false)
+						local initialvelo = calculated--(calculated - offsetshootpos).Unit * launchvelo
+						local initialvelo2 = (calculated2 - offsetshootpos).Unit * launchvelo
+						--initialvelo = initialvelo + Vector3.new(0, (offsetshootpos.Y + initialvelo.Y) - hehe, 0)
+						--print((offsetshootpos.Y + initialvelo.Y) - hehe)
+						--initialvelo = Vector3.new(initialvelo.X, initialvelo.Y + math.clamp((initialvelo.Y - calc(prediction, initialvelo, offsetshootpos, gravity)) / 6, 0, 10000000), initialvelo.Z)
+						oldmove = plr.Character.Humanoid.MoveDirection
+						return {
+							initialVelocity = Vector3.new(initialvelo2.X, (initialvelo and initialvelo.Y or initialvelo2.Y), initialvelo2.Z).Unit * (launchvelo - 0.2),
+							positionFrom = offsetshootpos,
+							deltaT = prediction,
+							gravitationalAcceleration = multigrav,
+							drawDurationSeconds = 5
+						}
+					end
+					return oldaim(bowtable, projmeta, worldmeta, shootpospart, ...)
+				end
+			else
+				bedwars["BowTable"]["calculateImportantLaunchValues"] = oldaim
+			end
+		end,
+		["InfoText"] = "Attack players/enemies that are near."
 	})
 end)
 
