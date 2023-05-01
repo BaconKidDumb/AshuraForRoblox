@@ -1,48 +1,52 @@
-if shared.AshuraExecuted then
-	local GuiLibrary = {}
+    local GuiLibrary = {}
 
 	local tween = game:GetService("TweenService")
 	local tweeninfo = TweenInfo.new
 	local input = game:GetService("UserInputService")
 	local run = game:GetService("RunService")
-
+	local httpservice = game:GetService("HttpService")
+	
+    if getgenv().CheckKavoShutdown then
+       getgenv().CheckKavoShutdown = false
+    end
+    
 	local Utility = {}
 	local Objects = {}
 	function GuiLibrary:DraggingEnabled(frame, parent)
+        
+    parent = parent or frame
+    
+    -- stolen from wally or kiriot, kek
+    local dragging = false
+    local dragInput, mousePos, framePos
 
-		parent = parent or frame
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            mousePos = input.Position
+            framePos = parent.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
 
-		-- stolen from wally or kiriot, kek
-		local dragging = false
-		local dragInput, mousePos, framePos
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
 
-		frame.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				dragging = true
-				mousePos = input.Position
-				framePos = parent.Position
-
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						dragging = false
-					end
-				end)
-			end
-		end)
-
-		frame.InputChanged:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-				dragInput = input
-			end
-		end)
-
-		input.InputChanged:Connect(function(input)
-			if input == dragInput and dragging then
-				local delta = input.Position - mousePos
-				parent.Position  = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
-			end
-		end)
-	end
+    input.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            parent.Position  = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
+    end)
+end
 
 	function Utility:TweenObject(obj, properties, duration, ...)
 		tween:Create(obj, tweeninfo(duration, ...), properties):Play()
@@ -147,10 +151,24 @@ if shared.AshuraExecuted then
 			game.CoreGui[LibName].Enabled = true
 		end
 	end
-
+   
+   function GuiLibrary:Shutdown()
+          for i,v in pairs(game.CoreGui:GetChildren()) do
+			if v:IsA("ScreenGui") and v.Name == kavName then
+				v:Destroy()
+			end
+		end
+		
+		if getgenv().CheckKavoShutdown then
+		      getgenv().CheckKavoShutdown = true
+		end
+    end
+   
+   
 	function GuiLibrary:CreateWindow(argstable)
 		local kavName = argstable["Title"]
 		local themeList = argstable["Theme"]
+		local size = argstable["Size"]
 		if not themeList then
 			themeList = themes
 		end
@@ -235,8 +253,10 @@ if shared.AshuraExecuted then
 		Main.BackgroundColor3 = themeList.Background
 		Main.ClipsDescendants = true
 		Main.Position = UDim2.new(0.336503863, 0, 0.275485456, 0)
-		Main.Size = UDim2.new(0, 525, 0, 318)
-
+		Main.Size = size
+       
+       rawset(Main, "oldSize", size)
+       
 		MainCorner.CornerRadius = UDim.new(0, 4)
 		MainCorner.Name = "MainCorner"
 		MainCorner.Parent = Main
@@ -291,7 +311,7 @@ if shared.AshuraExecuted then
 				Position = UDim2.new(0, Main.AbsolutePosition.X + (Main.AbsoluteSize.X / 2), 0, Main.AbsolutePosition.Y + (Main.AbsoluteSize.Y / 2))
 			}):Play()
 			wait(1)
-			ScreenGui:Destroy()
+			GuiLibrary:Shutdown()
 		end)
 
 		MainSide.Name = "MainSide"
@@ -354,7 +374,9 @@ if shared.AshuraExecuted then
 				coverup.BackgroundColor3 = themeList.Header
 			end
 		end)()
-
+       
+       
+		
 		function GuiLibrary:ChangeColor(prope,color)
 			if prope == "Background" then
 				themeList.Background = color
@@ -2647,5 +2669,8 @@ if shared.AshuraExecuted then
 		end  
 		return Tabs
 	end
-	return GuiLibrary
-end
+    return setmetatable(GuiLibrary, {
+	__index = function(_, i)
+		return rawget(Library, i:lower())
+	end
+})
