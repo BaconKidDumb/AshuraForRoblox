@@ -255,7 +255,7 @@ end
 		Main.Position = UDim2.new(0.336503863, 0, 0.275485456, 0)
 		Main.Size = size
        
-       rawset(Main, "oldSize", size)
+       
        
 		MainCorner.CornerRadius = UDim.new(0, 4)
 		MainCorner.Name = "MainCorner"
@@ -2669,8 +2669,4 @@ end
 		end  
 		return Tabs
 	end
-    return setmetatable(GuiLibrary, {
-	__index = function(_, i)
-		return rawget(Library, i:lower())
-	end
-})
+return GuiLibrary
